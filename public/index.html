@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Location Updates</title>
+  <!-- Include Socket.IO client library -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Include Google Maps API with your API key -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDvxuza99KboFEggOMzXt6Rkutxw9GggZ0&callback=initMap" async defer></script>
+  <style>
+    /* Adjust map container size */
+    #map {
+      height: 400px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h1>Live Location Updates</h1>
+  <div id="map"></div>
+  <ul id="locationList"></ul>
+  <!-- Button to send live location -->
+  <button id="sendLocationButton">Send Live Location</button>
+
+  <script>
+    const socket = io();
+    let map;
+    let marker;
+    const AdminId = '+91 8460644303'; // Replace this with the actual admin ID
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 0, lng: 0 }, // Initial center position
+        zoom: 12, // Initial zoom level
+      });
+
+      marker = new google.maps.Marker({
+        map,
+        position: { lat: 0, lng: 0 }, // Initial marker position
+      });
+    }
+
+    // Listen for new location data updates
+    socket.on('newLocationData', (location) => {
+      console.log('New location data received:', location);
+
+      // Update UI with new location data
+      const locationList = document.getElementById('locationList');
+      const listItem = document.createElement('li');
+      listItem.textContent = `Latitude: ${location.latitude}, Longitude: ${location.longitude}, User ID: ${location.userId}`; // Include user ID in the list item
+      locationList.appendChild(listItem);
+
+      // Update map marker position
+      if (map && marker) {
+        marker.setPosition({ lat: location.latitude, lng: location.longitude });
+        map.setCenter({ lat: location.latitude, lng: location.longitude });
+      }
+    });
+
+    socket.on('error', (error) => {
+      console.error('Socket.io error:', error.message);
+      // Handle and display errors in the UI
+    });
+
+    // Send live location when button is clicked
+    const sendLocationButton = document.getElementById('sendLocationButton');
+    sendLocationButton.addEventListener('click', () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((position) => {
+          const { latitude, longitude } = position.coords;
+          const userId = '+91 8320256630'; // Replace this with your logic to get the current logged-in user's ID
+
+          if (userId) {
+            socket.emit('sendLocationData', { userId, AdminId, latitude, longitude }); // Include adminId and userId in the data
+            console.log('Location sent:', { userId, AdminId, latitude, longitude });
+
+            // Optionally, update UI immediately without waiting for server response
+            const locationList = document.getElementById('locationList');
+            const listItem = document.createElement('li');
+            listItem.textContent = `Sent Latitude: ${latitude}, Longitude: ${longitude}, User ID: ${userId}`;
+            locationList.appendChild(listItem);
+
+            // Update map marker position immediately
+            if (map && marker) {
+              marker.setPosition({ lat: latitude, lng: longitude });
+              map.setCenter({ lat: latitude, lng: longitude });
+            }
+          } else {
+            console.error('User ID not available.');
+          }
+        }, (error) => {
+          console.error('Error getting location:', error);
+        });
+      } else {
+        console.error('Geolocation is not supported.');
+      }
+    });
+  </script>
+</body>
+</html>
